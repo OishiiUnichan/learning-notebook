@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MySQL 穴埋めクイズ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ── tokens ── */
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --border:    #30363d;
+    --cyan:      #39d0c8;
+    --green:     #3fb950;
+    --red:       #f85149;
+    --yellow:    #d29922;
+    --text:      #e6edf3;
+    --muted:     #7d8590;
+    --mono:      'JetBrains Mono', monospace;
+    --sans:      'Noto Sans JP', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+    padding: 0 0 80px;
+  }
+
+  /* ── header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 32px 24px 24px;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--cyan);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.2;
+  }
+  .meta {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  /* ── score bar ── */
+  #scorebar {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: rgba(13,17,23,.92);
+    backdrop-filter: blur(8px);
+    z-index: 10;
+  }
+  #scorebar .label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  #score-display { font-family: var(--mono); font-size: 18px; font-weight: 600; color: var(--cyan); }
+  .progress-wrap { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  #progress-bar { height: 100%; width: 0%; background: var(--cyan); transition: width .4s ease; border-radius: 2px; }
+  #reset-btn {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  #reset-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+  /* ── main ── */
+  main { max-width: 800px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── step section ── */
+  .step {
+    margin-top: 40px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .step-header {
+    background: var(--surface);
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .1em;
+    color: var(--cyan);
+    background: rgba(57,208,200,.12);
+    border: 1px solid rgba(57,208,200,.3);
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+  .step-title { font-weight: 600; font-size: 14px; }
+
+  /* ── code block with inputs ── */
+  .code-wrap {
+    padding: 18px 20px;
+    background: #010409;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.9;
+    overflow-x: auto;
+  }
+  .code-line { white-space: pre-wrap; word-break: break-all; }
+  .comment { color: var(--muted); }
+
+  /* ── blank input ── */
+  .blank {
+    display: inline-block;
+    background: rgba(57,208,200,.08);
+    border: 1px solid rgba(57,208,200,.35);
+    border-radius: 3px;
+    padding: 0 4px;
+    min-width: 80px;
+    height: 22px;
+    vertical-align: middle;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--cyan);
+    outline: none;
+    transition: border-color .15s, background .15s;
+    -webkit-appearance: none;
+  }
+  .blank:focus { border-color: var(--cyan); background: rgba(57,208,200,.14); }
+  .blank.correct { border-color: var(--green); background: rgba(63,185,80,.12); color: var(--green); }
+  .blank.wrong   { border-color: var(--red);   background: rgba(248,81,73,.10); color: var(--red); }
+  .blank:disabled { opacity: .7; cursor: default; }
+
+  /* ── check button ── */
+  .check-row {
+    padding: 14px 20px 18px;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .check-btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 7px 18px;
+    background: var(--cyan);
+    color: #0d1117;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: .04em;
+    transition: opacity .15s;
+  }
+  .check-btn:hover { opacity: .85; }
+  .check-btn:disabled { opacity: .4; cursor: default; }
+
+  /* ── result feedback ── */
+  .result-line {
+    font-family: var(--mono);
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity .25s;
+    flex: 1;
+    min-width: 200px;
+  }
+  .result-line.show { opacity: 1; }
+  .result-line .ok  { color: var(--green); }
+  .result-line .ng  { color: var(--red); }
+  .result-line .answer { color: var(--yellow); }
+
+  /* ── tip box ── */
+  .tip {
+    margin: 0 20px 18px;
+    padding: 10px 14px;
+    background: rgba(210,153,34,.08);
+    border-left: 3px solid var(--yellow);
+    font-size: 13px;
+    color: #c9d1d9;
+    border-radius: 0 4px 4px 0;
+  }
+  .tip strong { color: var(--yellow); }
+
+  /* ── table ── */
+  .tbl-wrap { padding: 14px 20px 20px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; font-family: var(--mono); }
+  th { background: var(--surface); color: var(--muted); font-weight: 600; text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 12px; border-bottom: 1px solid #21262d; vertical-align: middle; }
+  td code { color: var(--cyan); }
+
+  /* ── final score ── */
+  #final {
+    display: none;
+    margin-top: 40px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 32px 28px;
+    text-align: center;
+    background: var(--surface);
+  }
+  #final .big { font-family: var(--mono); font-size: 52px; font-weight: 600; color: var(--cyan); line-height: 1; }
+  #final .sub { margin-top: 8px; color: var(--muted); font-size: 14px; }
+  #final .msg { margin-top: 20px; font-size: 16px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">subject: DB ／ 2026-06-11</p>
+  <h1>MySQL コマンドライン<br>穴埋めクイズ</h1>
+  <p class="meta">ログイン → DB作成 → テーブル操作 → SELECT → 更新削除 → VIEW → トランザクション → トリガー</p>
+</header>
+
+<div id="scorebar">
+  <span class="label">SCORE</span>
+  <span id="score-display">0 / 0</span>
+  <div class="progress-wrap"><div id="progress-bar"></div></div>
+  <button id="reset-btn" onclick="resetAll()">リセット</button>
+</div>
+
+<main id="quiz"></main>
+
+<div id="final">
+  <div class="big" id="final-score"></div>
+  <div class="sub" id="final-sub"></div>
+  <div class="msg" id="final-msg"></div>
+</div>
+
+<script>
+// =====================================================
+//  Quiz data
+//  lines: array of { t: 'code'|'comment'|'blank'|'tip', ... }
+//  blanks: answer string (trimmed, case-insensitive)
+// =====================================================
+const steps = [
+  {
+    num: "STEP 1", title: "MySQLにログイン",
+    questions: [
+      {
+        id: "s1q1",
+        label: "rootユーザーでMySQLにログインするコマンドは？",
+        lines: [
+          { t:"comment", v:"-- rootユーザーでログイン（パスワードを入力）" },
+          { t:"code",    v:"mysql " },{ t:"blank", id:"b1", ans:"-u", w:40 },{ t:"code", v:" root " },{ t:"blank", id:"b2", ans:"-p", w:35 },
+        ],
+        tip: "<strong>-u</strong> はユーザー名オプション、<strong>-p</strong> はパスワード入力を求めるオプション。"
+      },
+      {
+        id: "s1q2",
+        label: "ログイン中のユーザー確認 / DB一覧確認",
+        lines: [
+          { t:"comment", v:"-- ログインユーザーの確認" },
+          { t:"blank", id:"b3", ans:"SELECT", w:70 },{ t:"code", v:" USER();" },
+          { t:"comment", v:"-- 存在するDBの一覧確認" },
+          { t:"blank", id:"b4", ans:"SHOW", w:55 },{ t:"code", v:" DATABASES;" },
+        ]
+      }
+    ]
+  },
+  {
+    num: "STEP 2", title: "DBの新規作成",
+    questions: [
+      {
+        id: "s2q1",
+        label: "DBを作成し、選択するコマンドを完成させよう",
+        lines: [
+          { t:"comment", v:"-- DB作成（照合順序：日本語対応・大文字小文字を区別しない）" },
+          { t:"blank", id:"b5", ans:"CREATE", w:65 },{ t:"code", v:" DATABASE practice_db " },{ t:"blank", id:"b6", ans:"COLLATE", w:75 },{ t:"code", v:" utf8_general_ci;" },
+          { t:"comment", v:"-- 作成したDBを選択" },
+          { t:"blank", id:"b7", ans:"USE", w:45 },{ t:"code", v:" practice_db;" },
+          { t:"comment", v:"-- 現在使用中のDBを確認" },
+          { t:"code", v:"SELECT " },{ t:"blank", id:"b8", ans:"DATABASE()", w:100 },{ t:"code", v:";" },
+        ],
+        tip: "<strong>COLLATE utf8_general_ci</strong>：ci = Case Insensitive（大文字小文字を区別しない）"
+      }
+    ]
+  },
+  {
+    num: "STEP 3", title: "テーブルの作成",
+    questions: [
+      {
+        id: "s3q1",
+        label: "categoryテーブルを作成しよう",
+        lines: [
+          { t:"blank", id:"b9", ans:"CREATE", w:65 },{ t:"code", v:" TABLE category (" },
+          { t:"code", v:"  id_cat  INT         NOT NULL " },{ t:"blank", id:"b10", ans:"AUTO_INCREMENT", w:130 },{ t:"code", v:"," },
+          { t:"code", v:"  catname VARCHAR(50) NOT NULL," },
+          { t:"code", v:"  " },{ t:"blank", id:"b11", ans:"PRIMARY KEY", w:105 },{ t:"code", v:" (id_cat)" },
+          { t:"code", v:");" },
+        ]
+      },
+      {
+        id: "s3q2",
+        label: "shohinテーブルのDEFAULT制約を埋めよう",
+        lines: [
+          { t:"code", v:"CREATE TABLE shohin (" },
+          { t:"code", v:"  id_sho INT          NOT NULL AUTO_INCREMENT," },
+          { t:"code", v:"  name   VARCHAR(100) NOT NULL," },
+          { t:"code", v:"  price  INT          NOT NULL," },
+          { t:"code", v:"  stock  INT          NOT NULL " },{ t:"blank", id:"b12", ans:"DEFAULT", w:75 },{ t:"code", v:" 0," },
+          { t:"code", v:"  id_cat INT          NOT NULL," },
+          { t:"code", v:"  PRIMARY KEY (id_sho)" },
+          { t:"code", v:");" },
+        ],
+        tip: "<strong>DEFAULT 0</strong>：INSERT時に stock を省略すると自動的に 0 が入る。"
+      },
+      {
+        id: "s3q3",
+        label: "テーブル確認コマンド",
+        lines: [
+          { t:"comment", v:"-- テーブル一覧" },
+          { t:"blank", id:"b13", ans:"SHOW", w:55 },{ t:"code", v:" TABLES;" },
+          { t:"comment", v:"-- カラム構成の確認" },
+          { t:"blank", id:"b14", ans:"SHOW", w:55 },{ t:"code", v:" COLUMNS FROM shohin;" },
+        ]
+      }
+    ]
+  },
+  {
+    num: "STEP 4", title: "データの一括登録",
+    questions: [
+      {
+        id: "s4q1",
+        label: "カテゴリデータをINSERTしよう",
+        lines: [
+          { t:"blank", id:"b15", ans:"INSERT INTO", w:105 },{ t:"code", v:" category (catname)" },
+          { t:"blank", id:"b16", ans:"VALUES", w:65 },
+          { t:"code", v:"  ('食品'), ('文房具'), ('電化製品'), ('衣類'), ('スポーツ');" },
+        ]
+      },
+      {
+        id: "s4q2",
+        label: "登録内容を確認するSELECT",
+        lines: [
+          { t:"blank", id:"b17", ans:"SELECT", w:65 },{ t:"code", v:" * " },{ t:"blank", id:"b18", ans:"FROM", w:50 },{ t:"code", v:" category;" },
+          { t:"code", v:"SELECT * FROM shohin;" },
+        ]
+      }
+    ]
+  },
+  {
+    num: "STEP 5", title: "SELECT文の練習",
+    questions: [
+      {
+        id: "s5q1",
+        label: "WHERE・ORDER BY・LIMIT・DISTINCT",
+        lines: [
+          { t:"comment", v:"-- 価格が500円以上の商品" },
+          { t:"code", v:"SELECT * FROM shohin " },{ t:"blank", id:"b19", ans:"WHERE", w:60 },{ t:"code", v:" price >= 500;" },
+          { t:"comment", v:"-- 価格の高い順" },
+          { t:"code", v:"SELECT * FROM shohin ORDER BY price " },{ t:"blank", id:"b20", ans:"DESC", w:50 },{ t:"code", v:";" },
+          { t:"comment", v:"-- 価格が安い上位3件" },
+          { t:"code", v:"SELECT * FROM shohin ORDER BY price ASC " },{ t:"blank", id:"b21", ans:"LIMIT", w:55 },{ t:"code", v:" 3;" },
+          { t:"comment", v:"-- カテゴリIDの重複を除いた一覧" },
+          { t:"code", v:"SELECT " },{ t:"blank", id:"b22", ans:"DISTINCT", w:80 },{ t:"code", v:" id_cat FROM shohin;" },
+        ]
+      },
+      {
+        id: "s5q2",
+        label: "集計：GROUP BY と HAVING",
+        lines: [
+          { t:"comment", v:"-- 全商品の平均価格" },
+          { t:"code", v:"SELECT " },{ t:"blank", id:"b23", ans:"AVG", w:45 },{ t:"code", v:"(price) AS 平均価格 FROM shohin;" },
+          { t:"comment", v:"-- カテゴリ別の商品数と合計在庫" },
+          { t:"code", v:"SELECT id_cat, " },{ t:"blank", id:"b24", ans:"COUNT(*)", w:80 },{ t:"code", v:" AS 商品数, SUM(stock) AS 合計在庫" },
+          { t:"code", v:"FROM shohin " },{ t:"blank", id:"b25", ans:"GROUP BY", w:85 },{ t:"code", v:" id_cat;" },
+          { t:"comment", v:"-- 合計在庫が100以上のカテゴリのみ" },
+          { t:"code", v:"SELECT id_cat, SUM(stock) AS 合計在庫 FROM shohin GROUP BY id_cat" },
+          { t:"blank", id:"b26", ans:"HAVING", w:70 },{ t:"code", v:" 合計在庫 >= 100;" },
+        ],
+        tip: "<strong>WHERE</strong> は集計前の絞り込み、<strong>HAVING</strong> は集計後の絞り込み。"
+      },
+      {
+        id: "s5q3",
+        label: "INNER JOIN でテーブルを結合しよう",
+        lines: [
+          { t:"code", v:"SELECT shohin.name, shohin.price, category.catname" },
+          { t:"code", v:"FROM shohin" },
+          { t:"blank", id:"b27", ans:"INNER JOIN", w:100 },{ t:"code", v:" category" },
+          { t:"blank", id:"b28", ans:"ON", w:35 },{ t:"code", v:" shohin.id_cat = category.id_cat;" },
+        ]
+      },
+      {
+        id: "s5q4",
+        label: "サブクエリ：平均価格より高い商品を抽出",
+        lines: [
+          { t:"code", v:"SELECT * FROM shohin" },
+          { t:"code", v:"WHERE price > (" },{ t:"blank", id:"b29", ans:"SELECT", w:65 },{ t:"code", v:" " },{ t:"blank", id:"b30", ans:"AVG", w:45 },{ t:"code", v:"(price) FROM shohin);" },
+        ]
+      }
+    ]
+  },
+  {
+    num: "STEP 6", title: "データの更新と削除",
+    questions: [
+      {
+        id: "s6q1",
+        label: "UPDATEで価格を変更しよう",
+        lines: [
+          { t:"blank", id:"b31", ans:"UPDATE", w:70 },{ t:"code", v:" shohin" },
+          { t:"blank", id:"b32", ans:"SET", w:40 },{ t:"code", v:" price = 180" },
+          { t:"blank", id:"b33", ans:"WHERE", w:60 },{ t:"code", v:" name = 'りんご';" },
+        ],
+        tip: "⚠️ <strong>WHERE句は必ず付ける！</strong> 省略すると全レコードが更新される。"
+      },
+      {
+        id: "s6q2",
+        label: "DELETEで在庫0の商品を削除しよう",
+        lines: [
+          { t:"blank", id:"b34", ans:"DELETE", w:65 },{ t:"code", v:" FROM shohin WHERE stock = 0;" },
+        ],
+        tip: "⚠️ 必ず事前に <strong>SELECT</strong> で対象を確認してから実行すること。"
+      }
+    ]
+  },
+  {
+    num: "STEP 7", title: "ビューの作成と活用",
+    questions: [
+      {
+        id: "s7q1",
+        label: "shohin_viewというビューを作成しよう",
+        lines: [
+          { t:"blank", id:"b35", ans:"CREATE VIEW", w:110 },{ t:"code", v:" shohin_view" },
+          { t:"blank", id:"b36", ans:"AS", w:35 },
+          { t:"code", v:"SELECT shohin.id_sho, shohin.name, shohin.price, shohin.stock, category.catname" },
+          { t:"code", v:"FROM shohin INNER JOIN category ON shohin.id_cat = category.id_cat;" },
+        ]
+      },
+      {
+        id: "s7q2",
+        label: "ビューの参照・削除",
+        lines: [
+          { t:"comment", v:"-- ビューからデータを参照" },
+          { t:"code", v:"SELECT * FROM " },{ t:"blank", id:"b37", ans:"shohin_view", w:110 },{ t:"code", v:";" },
+          { t:"comment", v:"-- ビューを削除" },
+          { t:"blank", id:"b38", ans:"DROP", w:50 },{ t:"code", v:" VIEW shohin_view;" },
+        ]
+      }
+    ]
+  },
+  {
+    num: "STEP 8", title: "トランザクション",
+    questions: [
+      {
+        id: "s8q1",
+        label: "トランザクションの開始・ロールバック・コミット",
+        lines: [
+          { t:"comment", v:"-- トランザクション開始" },
+          { t:"blank", id:"b39", ans:"START TRANSACTION", w:160 },{ t:"code", v:";" },
+          { t:"code", v:"UPDATE shohin SET stock = stock - 10 WHERE id_sho = 1;" },
+          { t:"comment", v:"-- ① 問題があった場合 → 取り消し" },
+          { t:"blank", id:"b40", ans:"ROLLBACK", w:90 },{ t:"code", v:";" },
+          { t:"comment", v:"-- 再度開始して今度は確定" },
+          { t:"code", v:"START TRANSACTION;" },
+          { t:"code", v:"UPDATE shohin SET stock = stock - 10 WHERE id_sho = 1;" },
+          { t:"comment", v:"-- ② 問題がない場合 → 確定" },
+          { t:"blank", id:"b41", ans:"COMMIT", w:75 },{ t:"code", v:";" },
+        ],
+        tip: "DML（INSERT / UPDATE / DELETE）が対象。DDL（CREATE / DROP）はトランザクション<strong>対象外</strong>。"
+      }
+    ]
+  },
+  {
+    num: "STEP 9", title: "トリガーの作成と活用",
+    questions: [
+      {
+        id: "s9q1",
+        label: "category削除時に商品在庫を0にするトリガーを作成しよう",
+        lines: [
+          { t:"code", v:"DELIMITER //" },
+          { t:"blank", id:"b42", ans:"CREATE TRIGGER", w:130 },{ t:"code", v:" category_delete_trigger " },{ t:"blank", id:"b43", ans:"AFTER DELETE", w:115 },
+          { t:"code", v:"ON category FOR EACH ROW" },
+          { t:"blank", id:"b44", ans:"BEGIN", w:55 },
+          { t:"code", v:"  UPDATE shohin SET stock = 0 WHERE id_cat = " },{ t:"blank", id:"b45", ans:"OLD", w:45 },{ t:"code", v:".id_cat;" },
+          { t:"blank", id:"b46", ans:"END", w:45 },{ t:"code", v:" //" },
+          { t:"code", v:"DELIMITER ;" },
+        ],
+        tip: "<strong>OLD.カラム名</strong>：削除・更新前の値を参照。<strong>NEW.カラム名</strong>：挿入・更新後の値を参照。"
+      },
+      {
+        id: "s9q2",
+        label: "トリガーの確認・削除",
+        lines: [
+          { t:"comment", v:"-- トリガーの確認" },
+          { t:"blank", id:"b47", ans:"SHOW CREATE TRIGGER", w:175 },{ t:"code", v:" category_delete_trigger;" },
+          { t:"comment", v:"-- トリガーの削除" },
+          { t:"blank", id:"b48", ans:"DROP TRIGGER", w:120 },{ t:"code", v:" category_delete_trigger;" },
+        ]
+      }
+    ]
+  },
+  {
+    num: "STEP 10", title: "後片付け（DROP）",
+    questions: [
+      {
+        id: "s10q1",
+        label: "テーブルとDBを削除しよう",
+        lines: [
+          { t:"blank", id:"b49", ans:"DROP TABLE", w:100 },{ t:"code", v:" shohin;" },
+          { t:"blank", id:"b50", ans:"DROP TABLE", w:100 },{ t:"code", v:" category;" },
+          { t:"blank", id:"b51", ans:"DROP DATABASE", w:120 },{ t:"code", v:" practice_db;" },
+        ]
+      }
+    ]
+  }
+];
+
+// =====================================================
+//  State
+// =====================================================
+let totalBlanks = 0;
+let answered = 0;   // blanks checked (all in a question at once)
+let correct  = 0;
+
+function buildQuiz() {
+  const container = document.getElementById('quiz');
+  container.innerHTML = '';
+  steps.forEach(step => {
+    const sec = document.createElement('section');
+    sec.className = 'step';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'step-header';
+    hdr.innerHTML = `<span class="step-num">${step.num}</span><span class="step-title">${step.title}</span>`;
+    sec.appendChild(hdr);
+
+    step.questions.forEach(q => {
+      // code wrap
+      const codeWrap = document.createElement('div');
+      codeWrap.className = 'code-wrap';
+
+      let lineDiv = newLine();
+      q.lines.forEach(seg => {
+        if (seg.t === 'code' || seg.t === 'comment') {
+          const span = document.createElement('span');
+          span.className = seg.t === 'comment' ? 'comment' : '';
+          span.textContent = seg.v;
+          lineDiv.appendChild(span);
+          if (seg.v.endsWith('\n') || seg.v.trim() === '') {
+            codeWrap.appendChild(lineDiv);
+            lineDiv = newLine();
+          }
+        } else if (seg.t === 'blank') {
+          totalBlanks++;
+          const inp = document.createElement('input');
+          inp.type = 'text';
+          inp.className = 'blank';
+          inp.id = seg.id;
+          inp.dataset.ans = seg.ans.trim().toLowerCase();
+          inp.style.width = (seg.w || 80) + 'px';
+          inp.autocomplete = 'off';
+          inp.spellcheck = false;
+          // Enter moves to next blank or checks
+          inp.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+              const blanks = [...document.querySelectorAll(`#${q.id} .blank`)];
+              const idx = blanks.indexOf(inp);
+              if (idx < blanks.length - 1) blanks[idx + 1].focus();
+              else document.querySelector(`#${q.id} .check-btn`).click();
+            }
+          });
+          lineDiv.appendChild(inp);
+        }
+      });
+      if (lineDiv.childNodes.length) codeWrap.appendChild(lineDiv);
+      codeWrap.id = q.id;
+      sec.appendChild(codeWrap);
+
+      // tip
+      if (q.tip) {
+        const tip = document.createElement('div');
+        tip.className = 'tip';
+        tip.innerHTML = q.tip;
+        sec.appendChild(tip);
+      }
+
+      // check row
+      const row = document.createElement('div');
+      row.className = 'check-row';
+      const btn = document.createElement('button');
+      btn.className = 'check-btn';
+      btn.textContent = '答え合わせ';
+      const result = document.createElement('div');
+      result.className = 'result-line';
+      btn.onclick = () => checkQuestion(q.id, btn, result);
+      row.appendChild(btn);
+      row.appendChild(result);
+      sec.appendChild(row);
+    });
+
+    container.appendChild(sec);
+  });
+  updateScore();
+}
+
+function newLine() {
+  const d = document.createElement('div');
+  d.className = 'code-line';
+  return d;
+}
+
+function checkQuestion(qid, btn, resultEl) {
+  const blanks = [...document.querySelectorAll(`#${qid} .blank:not(:disabled)`)];
+  if (!blanks.length) return;
+
+  let allCorrect = true;
+  const wrongItems = [];
+
+  blanks.forEach(inp => {
+    const userVal = inp.value.trim().toLowerCase();
+    const correctVal = inp.dataset.ans;
+    if (userVal === correctVal) {
+      inp.classList.add('correct');
+      correct++;
+    } else {
+      inp.classList.add('wrong');
+      allCorrect = false;
+      wrongItems.push({ got: inp.value.trim() || '（空白）', expected: inp.dataset.ans.toUpperCase() });
+    }
+    inp.disabled = true;
+    answered++;
+  });
+
+  btn.disabled = true;
+
+  let html = '';
+  if (allCorrect) {
+    html = `<span class="ok">◯ 正解！</span>`;
+  } else {
+    html = `<span class="ng">✕ 不正解</span>　`;
+    html += wrongItems.map(w =>
+      `<span class="answer">正答: <strong>${w.expected}</strong></span>`
+    ).join('　');
+  }
+  resultEl.innerHTML = html;
+  resultEl.classList.add('show');
+
+  updateScore();
+  checkFinished();
+}
+
+function updateScore() {
+  const total = document.querySelectorAll('.blank').length;
+  const done  = document.querySelectorAll('.blank:disabled').length;
+  document.getElementById('score-display').textContent = `${correct} / ${done}`;
+  document.getElementById('progress-bar').style.width = total ? (done / total * 100) + '%' : '0%';
+}
+
+function checkFinished() {
+  const total = document.querySelectorAll('.blank').length;
+  const done  = document.querySelectorAll('.blank:disabled').length;
+  if (done < total) return;
+
+  const pct = Math.round(correct / total * 100);
+  let msg = pct === 100 ? '🎉 パーフェクト！全問正解です！' :
+            pct >= 80   ? '👏 よくできました！もう少しで満点！' :
+            pct >= 60   ? '📚 まずまず！間違えた箇所を復習しよう。' :
+                          '💪 もう一度テキストを確認してリトライ！';
+
+  const fin = document.getElementById('final');
+  document.getElementById('final-score').textContent = `${pct}%`;
+  document.getElementById('final-sub').textContent = `${correct} / ${total} 問正解`;
+  document.getElementById('final-msg').textContent = msg;
+  fin.style.display = 'block';
+  fin.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetAll() {
+  correct = 0; answered = 0;
+  document.getElementById('final').style.display = 'none';
+  buildQuiz();
+}
+
+buildQuiz();
+</script>
+</body>
+</html>
