@@ -44,7 +44,7 @@ public class JavaMasterLesson {
     boolean isStudent = true;
 
     // 文字列の結合と出力
-    
+    System.out.println("名前:" + this.studentName);
 
   }
 
