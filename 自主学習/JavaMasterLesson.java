@@ -37,6 +37,15 @@ public class JavaMasterLesson {
 
   public void demonstrateDataType() {
     System.out.println("\n[2.データ型と演算]");
+
+    // 整数型(int)、浮動小数点型(double)、論理型(boolean)
+    int age = 20;
+    double height = 170.5;
+    boolean isStudent = true;
+
+    // 文字列の結合と出力
+    
+
   }
 
 }
