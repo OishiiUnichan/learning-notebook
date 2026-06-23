@@ -45,7 +45,11 @@ public class JavaMasterLesson {
 
     // 文字列の結合と出力
     System.out.println("名前:" + this.studentName);
+    System.out.println("年齢:"+age+",身長:"+height+"cm");
 
+    //基本的な四則演算
+    int calculation = (10+5)*2/3;
+    System.out.println("(10+5)*2/3の結果:"+calculation); //結果は１０
   }
 
 }
