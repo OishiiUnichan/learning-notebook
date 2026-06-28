@@ -53,6 +53,7 @@ public class JavaMasterLesson {
   }
 
   /**
+   * 20260628
    * 3-1.条件分岐(if-else)を学ぶメソッド
    * @param score テストの点数
    */
@@ -71,7 +72,9 @@ public class JavaMasterLesson {
     }
   }
 
-  /** 3-2.条件分岐(switch)を学ぶメソッド
+  /** 
+   * 20260628
+   * 3-2.条件分岐(switch)を学ぶメソッド
    * 
    * @param signal 信号の色
    * 
