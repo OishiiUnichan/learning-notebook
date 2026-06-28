@@ -52,4 +52,47 @@ public class JavaMasterLesson {
     System.out.println("(10+5)*2/3の結果:"+calculation); //結果は１０
   }
 
+  /**
+   * 3-1.条件分岐(if-else)を学ぶメソッド
+   * @param score テストの点数
+   */
+
+  public void demonstrateControlFlow(int score) {
+    System.out.println("\n[3-1.条件分岐(if文)]");
+    System.out.println("点数:"+score);
+
+    //比較演算子での条件分け
+    if (score >= 90){
+      System.out.println("素晴らしい！優秀な成績です。");
+    } else if (score>=70){
+      System.out.println("合格です！よく頑張りました。");
+    } else {
+      System.out.println("不合格です。復習しましょう");
+    }
+  }
+
+  /** 3-2.条件分岐(switch)を学ぶメソッド
+   * 
+   * @param signal 信号の色
+   * 
+  */
+
+  public void demonstrateSwitch(String signal){
+    System.out.println("\n[3-2. 条件分岐(switch文)]");
+
+    //特定の値に応じて処理を分ける（等価比較に強い）
+    switch (signal) {
+      case "Stop":
+          System.out.println("赤信号：止まってください。");
+        break; //breakを忘れると次のcaseに進むので注意
+    
+      case "Go":
+        System.out.println("青信号：進んでも良いです。");
+        break;
+      default:
+        System.out.println("黄信号または不明:注意してください");
+        break;
+    }
+  }
+
 }
