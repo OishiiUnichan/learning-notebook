@@ -2,14 +2,17 @@ package model;
 import java.io.Serializable;
 
 public class SiteEV implements Serializable{
+    //フィールド
     private int like; //いいねの数
     private int dislike; //よくないねの数
 
-    public SiteEV(){
-        like = 0;
-        dislike = 0;
-    }
+/*     public SiteEV(){
+*        this.setLike(0);
+*        this.setDislike(0);
+*    }
+*/
 
+    //アクセサメソッド
     public int getLike(){return like;}
     public void setLike(int like){this.like = like;}
 
